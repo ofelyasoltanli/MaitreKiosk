@@ -65,7 +65,7 @@ Seed restoranlar: 1 (Dolma Evi), 2 (Pizza Nova), 3 (Sushi Bar).
 
 ## Sərf olunan vaxt
 
-Təxminən X saat (burada real vaxtını yaz).
+Təxminən 2.5 saat.
 
 ## Daha çox vaxtım olsaydı
 
