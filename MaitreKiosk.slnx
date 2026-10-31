@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MaitreKiosk.Api/MaitreKiosk.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MaitreKiosk.Tests/MaitreKiosk.Tests.csproj" />
+  </Folder>
+</Solution>

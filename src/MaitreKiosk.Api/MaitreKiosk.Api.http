@@ -1,0 +1,31 @@
+@host = http://localhost:5116
+
+### 1. Məhsul yarat
+POST {{host}}/api/restaurants/1/products
+Content-Type: application/json
+
+{ "name": "Lyulya kabab", "category": "Əsas yemək", "price": 14.50 }
+
+### 2. Qiyməti dəyiş
+PATCH {{host}}/api/products/9
+Content-Type: application/json
+
+{ "price": 15.00 }
+
+### 3. Satışdan çıxar
+PATCH {{host}}/api/products/9
+Content-Type: application/json
+
+{ "isAvailable": false }
+
+### 4. Mənfi qiymət (400 gözlə)
+POST {{host}}/api/restaurants/1/products
+Content-Type: application/json
+
+{ "name": "Test", "category": "X", "price": -5 }
+
+### 5. Olmayan restoran (404 gözlə)
+POST {{host}}/api/restaurants/999/products
+Content-Type: application/json
+
+{ "name": "Test", "category": "X", "price": 5 }
