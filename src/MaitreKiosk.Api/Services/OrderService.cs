@@ -9,6 +9,8 @@ namespace MaitreKiosk.Api.Services;
 public interface IOrderService
 {
     Task<OrderResponse> CreateAsync(int restaurantId, CreateOrderRequest request);
+    Task<OrderResponse> UpdateStatusAsync(int orderId, UpdateOrderStatusRequest request);
+    Task<PagedResponse<OrderResponse>> ListAsync(int restaurantId, string? status, int page, int pageSize);
 }
 
 public class OrderService : IOrderService
@@ -16,6 +18,16 @@ public class OrderService : IOrderService
     private readonly AppDbContext _db;
 
     public OrderService(AppDbContext db) => _db = db;
+
+    // İcazə verilən keçidlər: hər status hansı statuslara keçə bilər
+    private static readonly Dictionary<OrderStatus, OrderStatus[]> AllowedTransitions = new()
+    {
+        [OrderStatus.Pending]   = new[] { OrderStatus.Preparing, OrderStatus.Cancelled },
+        [OrderStatus.Preparing] = new[] { OrderStatus.Ready },
+        [OrderStatus.Ready]     = new[] { OrderStatus.Completed },
+        [OrderStatus.Completed] = Array.Empty<OrderStatus>(),
+        [OrderStatus.Cancelled] = Array.Empty<OrderStatus>()
+    };
 
     public async Task<OrderResponse> CreateAsync(int restaurantId, CreateOrderRequest request)
     {
@@ -73,5 +85,69 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
 
         return OrderResponse.From(order);
+    }
+
+    public async Task<OrderResponse> UpdateStatusAsync(int orderId, UpdateOrderStatusRequest request)
+    {
+        var newStatus = ParseStatus(request.Status);
+
+        var order = await _db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId)
+            ?? throw new NotFoundException($"Sifariş tapılmadı (id={orderId}).");
+
+        if (!AllowedTransitions[order.Status].Contains(newStatus))
+            throw new ConflictException(
+                $"Status {order.Status} → {newStatus} keçidi mümkün deyil.");
+
+        order.Status = newStatus;
+        await _db.SaveChangesAsync();
+
+        return OrderResponse.From(order);
+    }
+
+    public async Task<PagedResponse<OrderResponse>> ListAsync(int restaurantId, string? status, int page, int pageSize)
+    {
+        if (page < 1)
+            throw new BadRequestException("page ən azı 1 olmalıdır.");
+        if (pageSize < 1 || pageSize > 100)
+            throw new BadRequestException("pageSize 1 ilə 100 arasında olmalıdır.");
+
+        var restaurantExists = await _db.Restaurants.AnyAsync(r => r.Id == restaurantId);
+        if (!restaurantExists)
+            throw new NotFoundException($"Restoran tapılmadı (id={restaurantId}).");
+
+        var query = _db.Orders.AsNoTracking().Where(o => o.RestaurantId == restaurantId);
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            var parsed = ParseStatus(status);
+            query = query.Where(o => o.Status == parsed);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var orders = await query
+            .Include(o => o.Items)
+            .OrderByDescending(o => o.CreatedAt)
+            .ThenByDescending(o => o.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PagedResponse<OrderResponse>
+        {
+            Items = orders.Select(OrderResponse.From).ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
+    }
+
+    private static OrderStatus ParseStatus(string value)
+    {
+        // int.TryParse yoxlaması "1" kimi rəqəmlərin enum kimi qəbul olunmasının qarşısını alır
+        if (int.TryParse(value, out _) || !Enum.TryParse<OrderStatus>(value, ignoreCase: true, out var status))
+            throw new BadRequestException(
+                $"Yanlış status: '{value}'. Mümkün dəyərlər: {string.Join(", ", Enum.GetNames<OrderStatus>())}.");
+        return status;
     }
 }

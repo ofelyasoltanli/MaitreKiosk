@@ -19,4 +19,22 @@ public class OrdersController : ControllerBase
         var created = await _orders.CreateAsync(restaurantId, request);
         return StatusCode(StatusCodes.Status201Created, created);
     }
+
+    // PATCH /api/orders/5/status
+    [HttpPatch("orders/{orderId:int}/status")]
+    public async Task<ActionResult<OrderResponse>> UpdateStatus(int orderId, UpdateOrderStatusRequest request)
+    {
+        return Ok(await _orders.UpdateStatusAsync(orderId, request));
+    }
+
+    // GET /api/restaurants/1/orders?status=Pending&page=1&pageSize=20
+    [HttpGet("restaurants/{restaurantId:int}/orders")]
+    public async Task<ActionResult<PagedResponse<OrderResponse>>> List(
+        int restaurantId,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        return Ok(await _orders.ListAsync(restaurantId, status, page, pageSize));
+    }
 }
