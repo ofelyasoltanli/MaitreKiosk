@@ -12,6 +12,8 @@ builder.Services.AddScoped<IProductService, ProductService>();
 
 builder.Services.AddScoped<IOrderService, OrderService>();
 
+builder.Services.AddScoped<IStatsService, StatsService>();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
